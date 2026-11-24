@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Style Essential – Affiliate Content Studio</title>
+  <meta name="description" content="Tu contenido en dos idiomas. Convierte un producto en contenido.">
+  <meta name="theme-color" content="#f7f2ec">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Style Essential">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">SE</span>
+      <div>
+        <h1>Style Essential</h1>
+        <p class="sub">Affiliate Content Studio</p>
+      </div>
+    </div>
+    <p class="tagline">Tu contenido en dos idiomas.<br><strong>Convierte un producto en contenido.</strong></p>
+  </header>
+
+  <main>
+    <!-- PASO 1 -->
+    <section class="card" id="step1">
+      <h2><span class="num">1</span> Datos del producto</h2>
+
+      <label class="field-label" for="imageInput">Captura o imagen del producto</label>
+      <label class="file-drop" for="imageInput">
+        <input type="file" id="imageInput" accept="image/*">
+        <span class="file-btn">Seleccionar archivo</span>
+        <span class="file-name" id="fileName">Ningún archivo seleccionado</span>
+      </label>
+      <img id="preview" class="preview" alt="Vista previa del producto" hidden>
+
+      <div class="row-buttons">
+        <button type="button" class="btn btn-secondary" id="ocrBtn" disabled>Leer captura (OCR)</button>
+        <button type="button" class="btn btn-ghost ai-only" id="visionBtn" disabled>✨ Leer con IA</button>
+      </div>
+      <div class="progress" id="ocrProgress" hidden>
+        <div class="progress-bar"><span id="ocrBar"></span></div>
+        <p class="progress-text" id="ocrText">Preparando…</p>
+      </div>
+      <p class="notice">ℹ️ El OCR intenta extraer texto de la imagen. Comprueba siempre los datos antes de publicar.</p>
+
+      <label class="field-label" for="productName">Nombre del producto</label>
+      <input type="text" id="productName" class="input" placeholder="Ej.: Sérum facial de vitamina C" autocomplete="off">
+
+      <label class="field-label" for="productDesc">Descripción corta</label>
+      <textarea id="productDesc" class="input" rows="3" placeholder="Ej.: Ilumina y unifica el tono de la piel en pocas semanas."></textarea>
+
+      <label class="field-label" for="productFeatures">Características <small>(una por línea)</small></label>
+      <textarea id="productFeatures" class="input" rows="5" placeholder="Textura ligera&#10;Apto para todo tipo de piel&#10;Sin perfume"></textarea>
+
+      <label class="field-label" for="affiliateLink">Enlace de afiliado</label>
+      <input type="url" id="affiliateLink" class="input" placeholder="https://…" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </section>
+
+    <!-- PASO 2 -->
+    <section class="card" id="step2">
+      <h2><span class="num">2</span> Configurar publicaciones</h2>
+
+      <fieldset class="group">
+        <legend>Idioma de salida</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="lang" value="es" checked><span>🇪🇸 Español</span></label>
+          <label class="chip"><input type="radio" name="lang" value="en"><span>🇬🇧 Inglés</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Estilo</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="style" value="cercano" checked><span>Cercano y atractivo</span></label>
+          <label class="chip"><input type="radio" name="style" value="elegante"><span>Elegante</span></label>
+          <label class="chip"><input type="radio" name="style" value="directo"><span>Directo y vendedor</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Longitud</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="length" value="short" checked><span>Texto corto</span></label>
+          <label class="chip"><input type="radio" name="length" value="long"><span>Texto detallado</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Redes sociales</legend>
+        <div class="chips">
+          <label class="chip"><input type="checkbox" name="network" value="facebook" checked><span>Facebook</span></label>
+          <label class="chip"><input type="checkbox" name="network" value="instagram" checked><span>Instagram</span></label>
+          <label class="chip"><input type="checkbox" name="network" value="tiktok"><span>TikTok</span></label>
+          <label class="chip"><input type="checkbox" name="network" value="youtube"><span>YouTube</span></label>
+          <label class="chip"><input type="checkbox" name="network" value="pinterest"><span>Pinterest</span></label>
+        </div>
+      </fieldset>
+
+      <button type="button" class="btn btn-primary btn-block" id="generateBtn">Crear mis publicaciones</button>
+      <button type="button" class="btn btn-link btn-block" id="resetBtn">Limpiar formulario</button>
+    </section>
+
+    <!-- PASO 3 -->
+    <section class="card" id="step3">
+      <h2><span class="num">3</span> Publicaciones generadas</h2>
+      <div id="results">
+        <p class="empty">Tus publicaciones aparecerán aquí. Completa los datos y pulsa <strong>Crear mis publicaciones</strong>.</p>
+      </div>
+      <div class="ai-box" id="aiBox" hidden>
+        <button type="button" class="btn btn-ai btn-block" id="improveBtn">✨ Mejorar con IA</button>
+        <p class="hint" id="aiStatus"></p>
+      </div>
+      <p class="hint">Puedes editar cada texto antes de copiarlo. No se publica nada automáticamente.</p>
+    </section>
+
+    <!-- PASO 4 -->
+    <section class="card" id="step4">
+      <h2><span class="num">4</span> Ideas de tablero para Pinterest</h2>
+      <div id="boards">
+        <p class="empty">Las ideas de tablero aparecerán al crear tus publicaciones.</p>
+      </div>
+    </section>
+
+    <!-- PASO 5 -->
+    <section class="card" id="step5">
+      <h2><span class="num">5</span> Prompt creativo</h2>
+      <p class="lead">Crea instrucciones para diseñar imágenes y vídeos promocionales en tu herramienta de IA favorita.</p>
+
+      <fieldset class="group">
+        <legend>Estilo visual</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="visual" value="lujo" checked><span>Lujo</span></label>
+          <label class="chip"><input type="radio" name="visual" value="minimalista"><span>Minimalista</span></label>
+          <label class="chip"><input type="radio" name="visual" value="luminoso"><span>Moderno y luminoso</span></label>
+          <label class="chip"><input type="radio" name="visual" value="natural"><span>Natural y acogedor</span></label>
+          <label class="chip"><input type="radio" name="visual" value="colorido"><span>Colorido y dinámico</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Formato</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="format" value="9:16" checked><span>Vertical 9:16</span></label>
+          <label class="chip"><input type="radio" name="format" value="1:1"><span>Cuadrado 1:1</span></label>
+          <label class="chip"><input type="radio" name="format" value="16:9"><span>Horizontal 16:9</span></label>
+        </div>
+      </fieldset>
+
+      <div class="row-buttons">
+        <button type="button" class="btn btn-secondary" id="imgPromptBtn">Crear prompt de imagen</button>
+        <button type="button" class="btn btn-secondary" id="vidPromptBtn">Crear prompt de vídeo</button>
+      </div>
+
+      <div class="prompt-box" id="imgPromptBox" hidden>
+        <div class="post-head"><span class="badge badge-prompt">🖼️ Prompt de imagen</span></div>
+        <textarea class="post-text" id="imgPrompt" rows="8"></textarea>
+        <button type="button" class="btn btn-copy" data-copy="imgPrompt">Copiar</button>
+      </div>
+      <div class="prompt-box" id="vidPromptBox" hidden>
+        <div class="post-head"><span class="badge badge-prompt">🎬 Prompt de vídeo</span></div>
+        <textarea class="post-text" id="vidPrompt" rows="10"></textarea>
+        <button type="button" class="btn btn-copy" data-copy="vidPrompt">Copiar</button>
+      </div>
+    </section>
+
+    <!-- AJUSTES IA -->
+    <details class="card settings" id="aiSettings">
+      <summary>⚙️ Mejorar con IA (opcional)</summary>
+      <p class="hint" id="aiConfigStatus">Comprobando si la IA está disponible…</p>
+      <p class="hint">La IA usa una función segura en el servidor (Vercel). Tu clave de OpenAI <strong>nunca</strong> se guarda en este navegador ni en GitHub.</p>
+      <div id="accessCodeWrap" hidden>
+        <label class="field-label" for="accessCode">Código de acceso</label>
+        <input type="password" id="accessCode" class="input" placeholder="El código que configuraste en Vercel" autocomplete="off">
+      </div>
+    </details>
+  </main>
+
+  <footer class="foot">
+    <p>Style Essential · Affiliate Content Studio</p>
+    <p class="hint">Revisa siempre tus textos y cumple las normas de cada red y programa de afiliados.</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/templates.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

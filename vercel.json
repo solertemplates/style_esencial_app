@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/improve.js": { "maxDuration": 60 }
+  }
+}
