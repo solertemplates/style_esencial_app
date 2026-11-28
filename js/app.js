@@ -474,7 +474,7 @@
   }
 
   function resetForm() {
-    if (!confirm("¿Seguro que quieres limpiar el formulario?")) return;
+    if (!confirm("¿Seguro que quieres limpiar el formulario?\n\nSe borrarán la imagen, los datos del producto, el enlace y las publicaciones creadas. Esta acción no se puede deshacer.")) return;
     els.name.value = els.desc.value = els.features.value = els.link.value = "";
     els.imageInput.value = "";
     currentFile = null;
