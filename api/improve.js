@@ -18,8 +18,8 @@ const NETWORK_RULES = {
   facebook: "Facebook: tono conversacional, 1-3 párrafos, 2-3 hashtags como máximo.",
   instagram: "Instagram: gancho fuerte en la primera línea, emojis con moderación, saltos de línea, 8-15 hashtags al final.",
   tiktok: "TikTok: pie de vídeo breve y con gancho, 3-5 hashtags. Si es texto detallado, añade una mini idea de guion por segundos.",
-  youtube: "YouTube: incluye una línea 'Título:' (máx. 100 caracteres) y una descripción con beneficios, enlace e invitación a suscribirse; 3 hashtags.",
-  pinterest: "Pinterest: incluye 'Título del pin:' (máx. 100 caracteres) y una descripción rica en palabras clave (máx. 450 caracteres), sin abusar de emojis."
+  youtube: "YouTube: campo \"title\" (máx. 100 caracteres, sin enlace) y campo \"description\" con beneficios, enlace e invitación a suscribirse; 3 hashtags.",
+  pinterest: "Pinterest: campo \"title\" (máx. 100 caracteres) y campo \"description\" rica en palabras clave (máx. 500 caracteres en total, aviso incluido), sin enlace (el enlace va aparte) y sin abusar de emojis."
 };
 
 function send(res, status, data) {
@@ -39,7 +39,7 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-async function askOpenAI(messages, maxTokens) {
+async function askOpenAI(messages, maxTokens, temperature = 0.8) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45000);
   try {
@@ -54,7 +54,7 @@ async function askOpenAI(messages, maxTokens) {
         messages,
         response_format: { type: "json_object" },
         max_tokens: maxTokens,
-        temperature: 0.8
+        temperature
       }),
       signal: controller.signal
     });
@@ -96,14 +96,39 @@ function visionMessages(image, lang) {
   ];
 }
 
+function translateMessages(body) {
+  const product = body.product || {};
+  const data = {
+    name: str(product.name, 300),
+    description: str(product.desc, 1000),
+    features: (Array.isArray(product.features) ? product.features : []).slice(0, 12).map((f) => str(String(f), 300))
+  };
+  return [
+    {
+      role: "system",
+      content:
+        "You translate e-commerce product data into natural English. The text may come from OCR, so first fix " +
+        "obvious OCR mistakes (misread letters such as l/I or 0/O, broken or merged words, stray symbols). " +
+        "Keep brand names, model numbers and measurements. Do not invent information. " +
+        'Reply only with JSON: {"name": "...", "description": "...", "features": ["..."]} with the same number of features.'
+    },
+    { role: "user", content: JSON.stringify(data) }
+  ];
+}
+
 function postsMessages(body) {
   const product = body.product || {};
   const settings = body.settings || {};
   const lang = settings.lang === "en" ? "en" : "es";
   const networks = (Array.isArray(body.networks) ? body.networks : []).filter((n) => NETWORKS.includes(n));
   const features = (Array.isArray(product.features) ? product.features : []).slice(0, 12).map((f) => str(f, 200));
+  // Cada borrador es un objeto de campos: { text } o { title, description }
   const drafts = {};
-  networks.forEach((n) => { drafts[n] = str(body.posts && body.posts[n], 3000); });
+  networks.forEach((n) => {
+    const src = (body.posts && body.posts[n]) || {};
+    drafts[n] = {};
+    ["text", "title", "description"].forEach((f) => { if (typeof src[f] === "string") drafts[n][f] = str(src[f], 3000); });
+  });
   const link = str(product.link, 500);
   const disclaimer = str(body.disclaimer, 200);
 
@@ -114,11 +139,13 @@ function postsMessages(body) {
     `Estilo: ${STYLE_TEXT[settings.style] || STYLE_TEXT.cercano}.`,
     `Longitud: ${settings.length === "long" ? "texto detallado" : "texto corto"}.`,
     `Reglas por red:\n${networks.map((n) => "- " + NETWORK_RULES[n]).join("\n")}`,
-    link ? `Incluye SIEMPRE este enlace exacto, sin cambiarlo: ${link}` : `No hay enlace todavía: deja el marcador que aparece en el borrador.`,
-    `Incluye SIEMPRE este aviso de afiliado exacto: "${disclaimer}"`,
+    link ? `En los campos "text" y en la "description" de YouTube incluye SIEMPRE este enlace exacto, sin cambiarlo: ${link}` : `No hay enlace todavía: deja el marcador que aparece en el borrador.`,
+    `En cada campo "text" y "description" incluye SIEMPRE este aviso de afiliado exacto: "${disclaimer}".`,
+    `Coloca el aviso en una línea propia JUSTO DESPUÉS de la descripción del producto y ANTES del enlace. Nunca lo pongas al final.`,
+    `Devuelve exactamente los mismos campos que tiene cada borrador.`,
     `No inventes precios, descuentos, garantías ni afirmaciones médicas. Usa solo los datos dados.`,
     `Además propone 5 nombres de tablero de Pinterest de 3 palabras como máximo, en el mismo idioma.`,
-    `Responde solo con JSON: {"posts": {${networks.map((n) => `"${n}": "..."`).join(", ")}}, "boards": ["..."]}`
+    `Responde solo con JSON: {"posts": {${networks.map((n) => `"${n}": {${Object.keys(drafts[n]).map((f) => `"${f}": "..."`).join(", ")}}`).join(", ")}}, "boards": ["..."]}`
   ].join("\n");
 
   const data = {
@@ -170,12 +197,27 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    if (body.mode === "translate") {
+      const out = await askOpenAI(translateMessages(body), 1200, 0.2);
+      return send(res, 200, {
+        name: str(out.name, 200),
+        description: str(out.description, 1000),
+        features: (Array.isArray(out.features) ? out.features : []).slice(0, 12).map((f) => str(String(f), 300))
+      });
+    }
+
     if (body.mode === "posts") {
       const networks = (Array.isArray(body.networks) ? body.networks : []).filter((n) => NETWORKS.includes(n));
       if (!networks.length) return send(res, 400, { message: "No hay publicaciones que mejorar." });
       const out = await askOpenAI(postsMessages(body), 2500);
       const posts = {};
-      networks.forEach((n) => { if (out.posts && typeof out.posts[n] === "string") posts[n] = str(out.posts[n], 5000); });
+      networks.forEach((n) => {
+        const src = out.posts && out.posts[n];
+        if (!src) return;
+        if (typeof src === "string") { posts[n] = { text: str(src, 5000) }; return; }
+        posts[n] = {};
+        ["text", "title", "description"].forEach((f) => { if (typeof src[f] === "string") posts[n][f] = str(src[f], 5000); });
+      });
       const boards = (Array.isArray(out.boards) ? out.boards : []).slice(0, 8).map((b) => str(String(b), 60));
       return send(res, 200, { posts, boards });
     }

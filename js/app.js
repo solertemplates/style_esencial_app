@@ -14,6 +14,7 @@
     imageInput: $("imageInput"), fileName: $("fileName"), preview: $("preview"),
     ocrBtn: $("ocrBtn"), visionBtn: $("visionBtn"),
     ocrProgress: $("ocrProgress"), ocrBar: $("ocrBar"), ocrText: $("ocrText"),
+    storeName: $("storeName"), storeNameWrap: $("storeNameWrap"), disclaimerPreview: $("disclaimerPreview"),
     name: $("productName"), desc: $("productDesc"), features: $("productFeatures"), link: $("affiliateLink"),
     generateBtn: $("generateBtn"), resetBtn: $("resetBtn"),
     results: $("results"), boards: $("boards"),
@@ -42,14 +43,14 @@
   const ensureDot = (s) => (s && !/[.!?…]$/.test(s.trim()) ? s.trim() + "." : s.trim());
 
   let toastTimer;
-  function toast(msg) {
+  function toast(msg, ms = 2200) {
     els.toast.textContent = msg;
     els.toast.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => els.toast.classList.remove("show"), 2200);
+    toastTimer = setTimeout(() => els.toast.classList.remove("show"), ms);
   }
 
-  async function copyText(text, btn) {
+  async function copyText(text, btn, msg = "¡Copiado! ✅", ms) {
     let ok = false;
     try {
       await navigator.clipboard.writeText(text);
@@ -68,7 +69,7 @@
       document.body.removeChild(ta);
     }
     if (ok) {
-      toast("¡Copiado! ✅");
+      toast(msg, ms);
       if (btn) {
         const old = btn.textContent;
         btn.textContent = "¡Copiado!";
@@ -78,6 +79,7 @@
     } else {
       toast("No se pudo copiar. Mantén pulsado el texto para copiarlo.");
     }
+    return ok;
   }
 
   function autoGrow(ta) {
@@ -112,6 +114,7 @@
       const data = {
         settings: getSettings(),
         product: { name: els.name.value, desc: els.desc.value, features: els.features.value, link: els.link.value },
+        store: { id: radio("store") || "amazon", name: els.storeName.value },
         accessCode: els.accessCode.value
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -133,6 +136,10 @@
     els.features.value = p.features || "";
     els.link.value = p.link || "";
     els.accessCode.value = data.accessCode || "";
+    if (data.store) {
+      if (data.store.id) setRadio("store", data.store.id);
+      els.storeName.value = data.store.name || "";
+    }
   }
 
   /* ================= Categoría y hashtags ================= */
@@ -171,86 +178,135 @@
     return unique.map((t) => "#" + t).join(" ");
   }
 
+  /* ================= Tienda y aviso de afiliado ================= */
+  function getStoreName() {
+    const store = radio("store") || "amazon";
+    return store === "other" ? els.storeName.value.trim() : T.stores[store];
+  }
+
+  function getDisclaimer(lang) {
+    const store = radio("store") || "amazon";
+    if (store === "amazon") return T.disclaimers.amazon[lang];
+    const name = getStoreName();
+    if (!name) return T[lang].disclaimer;
+    let txt = fill(T.disclaimers.other[lang], { store: name });
+    if (lang === "en") txt = txt.replace(/^As a (?=[AEIOU])/i, "As an ");
+    return txt;
+  }
+
+  function updateStoreUI() {
+    els.storeNameWrap.hidden = radio("store") !== "other";
+    els.disclaimerPreview.textContent = "Aviso: " + getDisclaimer(getSettings().lang);
+  }
+
+  /* ================= Traducción con IA (salida en inglés) ================= */
+  let translation = { key: "", value: null };
+  const productKey = (p) => JSON.stringify([p.name, p.desc, p.features]);
+
+  // Devuelve los datos del producto para el idioma elegido
+  // (la versión traducida si ya existe para estos mismos datos).
+  function productFor(lang) {
+    const p = getProduct();
+    if (lang === "en" && translation.value && translation.key === productKey(p)) {
+      return { ...translation.value, link: p.link };
+    }
+    return p;
+  }
+
+  async function translateProduct(p) {
+    const key = productKey(p);
+    if (translation.value && translation.key === key) return { ...translation.value, link: p.link };
+    const res = await callAI({ mode: "translate", product: { name: p.name, desc: p.desc, features: p.features } });
+    const value = {
+      name: String(res.name || "").trim() || p.name,
+      desc: String(res.description || "").trim() || p.desc,
+      features: Array.isArray(res.features) && res.features.length ? res.features.map((f) => String(f).trim()).filter(Boolean) : p.features
+    };
+    translation = { key, value };
+    return { ...value, link: p.link };
+  }
+
   /* ================= Generador de publicaciones ================= */
+  // Cada publicación es una lista de campos: { id, label, text, max }
   function buildPost(network, product, settings) {
     const L = T[settings.lang];
+    const es = settings.lang === "es";
     const { style, length } = settings;
     const long = length === "long";
-    const name = product.name || (settings.lang === "es" ? "este producto" : "this product");
+    const name = product.name || (es ? "este producto" : "this product");
     const desc = ensureDot(product.desc || L.defaultDesc);
-    const link = product.link || (settings.lang === "es" ? "[pega aquí tu enlace]" : "[paste your link here]");
+    const link = product.link || (es ? "[pega aquí tu enlace]" : "[paste your link here]");
     const data = { name, desc, link };
     const hook = fill(pick(L.hooks[style]), data);
     const intro = pick(L.intros[style]);
     const closer = pick(L.closers[style]);
     const cta = fill(pick(L.cta[network]), data);
-    const disclaimer = L.disclaimer;
+    const disclaimer = getDisclaimer(settings.lang);
+    const descWithNotice = desc + "\n" + disclaimer; // aviso pegado a la descripción
     const feats = (n) => product.features.slice(0, n);
     const bullet = style === "elegante" ? "▫️" : style === "directo" ? "✅" : "✨";
-    const featBlock = (n) => {
-      const f = feats(n);
-      return f.length ? pick(L.featureTitle) + "\n" + f.map((x) => `${bullet} ${x}`).join("\n") : "";
-    };
-    const parts = [];
+    const bullets = (n) => feats(n).map((x) => `${bullet} ${x}`).join("\n");
+    const featBlock = (n) => (feats(n).length ? pick(L.featureTitle) + "\n" + bullets(n) : "");
+    const join = (parts) => parts.filter((p) => p && p.trim()).join("\n\n");
+    const single = (text) => [{ id: "text", label: "", text }];
 
     switch (network) {
       case "facebook":
-        parts.push(hook, desc);
-        if (long) parts.push(intro, featBlock(8), closer);
-        else if (product.features.length) parts.push(feats(2).map((x) => `${bullet} ${x}`).join("\n"));
-        parts.push(cta, buildHashtags(product, settings.lang, network, 3), disclaimer);
-        break;
+        return single(join([
+          hook, descWithNotice,
+          ...(long ? [intro, featBlock(8), closer] : [bullets(2)]),
+          cta, buildHashtags(product, settings.lang, network, 3)
+        ]));
 
       case "instagram":
-        parts.push(hook, desc);
-        parts.push(long ? intro + "\n\n" + featBlock(8) : featBlock(3));
-        if (long) parts.push(closer);
-        parts.push(cta, disclaimer, "·\n·\n" + buildHashtags(product, settings.lang, network, long ? 15 : 10));
-        break;
+        return single(join([
+          hook, descWithNotice,
+          long ? intro + "\n\n" + featBlock(8) : featBlock(3),
+          long ? closer : "",
+          cta, "·\n·\n" + buildHashtags(product, settings.lang, network, long ? 15 : 10)
+        ]));
 
       case "tiktok": {
-        const short = truncate(hook, 150);
-        parts.push(short);
-        if (long) {
-          parts.push(desc, featBlock(4));
-        } else if (product.features[0]) {
-          parts.push(`${bullet} ${product.features[0]}`);
-        }
-        parts.push(cta, buildHashtags(product, settings.lang, network, 5), disclaimer);
-        if (long) {
-          const S = L.tiktokScript;
-          parts.push("———\n" + S.title + "\n" + S.steps.map((s) => "• " + fill(s, { hook: short })).join("\n"));
-        }
-        break;
+        const shortHook = truncate(hook, 150);
+        const S = L.tiktokScript;
+        return single(join([
+          shortHook,
+          long ? descWithNotice : truncate(desc, 120) + "\n" + disclaimer,
+          long ? featBlock(4) : bullets(1),
+          cta, buildHashtags(product, settings.lang, network, 5),
+          long ? "———\n" + S.title + "\n" + S.steps.map((s) => "• " + fill(s, { hook: shortHook })).join("\n") : ""
+        ]));
       }
 
       case "youtube": {
         const Y = L.youtube;
-        const title = truncate(fill(pick(Y.titles), data), 100);
-        const label = settings.lang === "es" ? "📌 Título:" : "📌 Title:";
-        const descLabel = settings.lang === "es" ? "📝 Descripción:" : "📝 Description:";
-        parts.push(`${label} ${title}`, descLabel + "\n" + hook + " " + desc);
-        if (long) parts.push(intro, featBlock(8), Y.chapters);
-        else if (product.features.length) parts.push(feats(3).map((x) => `${bullet} ${x}`).join("\n"));
-        parts.push(cta, disclaimer, pick(Y.subscribe), buildHashtags(product, settings.lang, network, 3));
-        break;
+        return [
+          { id: "title", label: "Título", text: truncate(fill(pick(Y.titles), data), 100), max: 100 },
+          { id: "description", label: "Descripción", text: join([
+            hook + "\n\n" + descWithNotice,
+            ...(long ? [intro, featBlock(8), Y.chapters] : [bullets(3)]),
+            cta, pick(Y.subscribe), buildHashtags(product, settings.lang, network, 3)
+          ]), max: 5000 }
+        ];
       }
 
       case "pinterest": {
-        const title = truncate(fill(pick(L.pinterestTitle), data), 100);
-        const label = settings.lang === "es" ? "📌 Título del pin:" : "📌 Pin title:";
-        const descLabel = settings.lang === "es" ? "📝 Descripción:" : "📝 Description:";
         let body = desc + " " + intro;
         if (long && product.features.length) body += " " + feats(4).join(" · ") + ".";
-        body = truncate(body, long ? 420 : 250);
-        parts.push(`${label} ${title}`, descLabel + "\n" + body + "\n" + buildHashtags(product, settings.lang, network, 5), cta, disclaimer);
-        break;
+        const tags = buildHashtags(product, settings.lang, network, 5);
+        // Pinterest admite 500 caracteres: recorta el texto, nunca el aviso
+        body = truncate(body, Math.min(long ? 420 : 250, 500 - disclaimer.length - tags.length - 4));
+        return [
+          { id: "title", label: "Título del pin", text: truncate(fill(pick(L.pinterestTitle), data), 100), max: 100 },
+          { id: "description", label: "Descripción", text: body + "\n" + disclaimer + "\n\n" + tags, max: 500 },
+          { id: "link", label: "Enlace", text: link }
+        ];
       }
     }
-    return parts.filter((p) => p && p.trim()).join("\n\n");
+    return single("");
   }
 
-  function renderPost(network, text, fromAI) {
+  function renderPost(network, fields, fromAI) {
     let card = els.results.querySelector(`.post[data-network="${network}"]`);
     if (!card) {
       card = document.createElement("article");
@@ -259,34 +315,77 @@
       card.innerHTML = `
         <div class="post-head">
           <span class="badge badge-${network}">${NETWORK_LABELS[network]}</span>
-          <span class="count"></span>
+          <span class="count count-main"></span>
         </div>
-        <textarea class="post-text" aria-label="Publicación para ${NETWORK_LABELS[network]}"></textarea>
-        <div class="post-actions">
-          <button type="button" class="btn btn-copy">Copiar</button>
-          <button type="button" class="btn btn-small btn-regen" title="Crear otra versión">↻ Otra versión</button>
-        </div>`;
+        <div class="post-fields"></div>
+        <button type="button" class="btn btn-small post-regen">↻ Otra versión</button>`;
       els.results.appendChild(card);
-      const ta = card.querySelector("textarea");
-      ta.addEventListener("input", () => { updateCount(card); autoGrow(ta); });
-      card.querySelector(".btn-copy").addEventListener("click", (e) => copyText(ta.value, e.currentTarget));
-      card.querySelector(".btn-regen").addEventListener("click", () => {
-        renderPost(network, buildPost(network, getProduct(), getSettings()), false);
+      card.querySelector(".post-regen").addEventListener("click", () => {
+        const s = getSettings();
+        renderPost(network, buildPost(network, productFor(s.lang), s), false);
       });
     }
-    const ta = card.querySelector("textarea");
-    ta.value = text;
+    const wrap = card.querySelector(".post-fields");
+    wrap.innerHTML = "";
+    const multi = fields.length > 1;
+    fields.forEach((f) => {
+      const block = document.createElement("div");
+      block.className = "field-block";
+      block.dataset.field = f.id;
+      if (f.max) block.dataset.max = f.max;
+      block.innerHTML = multi ? `<div class="field-head"><span class="field-title"></span><span class="count"></span></div>` : "";
+      const ta = document.createElement("textarea");
+      ta.className = "post-text" + (f.id === "title" || f.id === "link" ? " short" : "");
+      ta.rows = f.id === "title" || f.id === "link" ? 2 : 6;
+      ta.value = f.text;
+      ta.setAttribute("aria-label", `${f.label || "Publicación"} – ${NETWORK_LABELS[network]}`);
+      if (f.id === "link") { ta.spellcheck = false; ta.autocapitalize = "off"; }
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-copy";
+      btn.textContent = multi ? `Copiar ${f.label.toLowerCase()}` : "Copiar";
+      btn.addEventListener("click", () => copyText(ta.value, btn));
+      ta.addEventListener("input", () => { updateCount(card); autoGrow(ta); });
+      block.appendChild(ta);
+      block.appendChild(btn);
+      if (multi) block.querySelector(".field-title").textContent = f.label;
+      wrap.appendChild(block);
+      requestAnimationFrame(() => autoGrow(ta));
+    });
     const head = card.querySelector(".post-head");
     const flag = head.querySelector(".ai-flag");
     if (fromAI && !flag) head.querySelector(".badge").insertAdjacentHTML("afterend", '<span class="ai-flag">✨ IA</span>');
     if (!fromAI && flag) flag.remove();
     updateCount(card);
-    requestAnimationFrame(() => autoGrow(ta));
   }
 
   function updateCount(card) {
-    const n = card.querySelector("textarea").value.length;
-    card.querySelector(".count").textContent = `${n} caracteres`;
+    const blocks = [...card.querySelectorAll(".field-block")];
+    if (blocks.length === 1) {
+      card.querySelector(".count-main").textContent = `${blocks[0].querySelector("textarea").value.length} caracteres`;
+      return;
+    }
+    card.querySelector(".count-main").textContent = "";
+    blocks.forEach((b) => {
+      const n = b.querySelector("textarea").value.length;
+      const max = Number(b.dataset.max) || 0;
+      const c = b.querySelector(".count");
+      c.textContent = max ? `${n}/${max}` : `${n}`;
+      c.classList.toggle("over", max > 0 && n > max);
+    });
+  }
+
+  // Lee los textos (posiblemente editados) de cada tarjeta
+  function readPosts() {
+    const posts = {};
+    els.results.querySelectorAll(".post").forEach((card) => {
+      const fields = {};
+      card.querySelectorAll(".field-block").forEach((b) => {
+        fields[b.dataset.field] = { label: b.querySelector(".field-title") ? b.querySelector(".field-title").textContent : "", text: b.querySelector("textarea").value, max: Number(b.dataset.max) || undefined };
+      });
+      posts[card.dataset.network] = fields;
+    });
+    return posts;
   }
 
   /* ================= Tableros Pinterest ================= */
@@ -306,7 +405,12 @@
       btn.className = "board";
       btn.textContent = b;
       btn.title = "Toca para copiar";
-      btn.addEventListener("click", () => copyText(b));
+      btn.addEventListener("click", async () => {
+        if (await copyText(b, null, "Copiado ✓", 1200)) {
+          btn.classList.add("copied");
+          setTimeout(() => btn.classList.remove("copied"), 1200);
+        }
+      });
       wrap.appendChild(btn);
     });
     els.boards.appendChild(wrap);
@@ -317,10 +421,17 @@
   }
 
   /* ================= Generar todo ================= */
-  function generate() {
-    const product = getProduct();
+  function showResultsNote(text, ok) {
+    const note = document.createElement("p");
+    note.className = "notice results-note" + (ok ? " ok" : "");
+    note.textContent = text;
+    els.results.prepend(note);
+  }
+
+  async function generate() {
+    const original = getProduct();
     const settings = getSettings();
-    if (!product.name) {
+    if (!original.name) {
       toast("Escribe al menos el nombre del producto.");
       els.name.focus();
       return;
@@ -329,9 +440,31 @@
       toast("Elige al menos una red social.");
       return;
     }
-    if (!product.link) toast("Consejo: añade tu enlace de afiliado.");
+
+    let product = original;
+    let note = null;
+    if (settings.lang === "en") {
+      if (aiAvailable) {
+        els.generateBtn.disabled = true;
+        els.generateBtn.textContent = "Traduciendo al inglés…";
+        try {
+          product = await translateProduct(original);
+          note = { text: "✨ Nombre, descripción y características traducidos al inglés y corregidos con IA. Revísalos antes de publicar.", ok: true };
+        } catch (err) {
+          note = { text: "No se pudo traducir con IA (" + err.message + "). Se han usado tus datos originales." };
+        } finally {
+          els.generateBtn.disabled = false;
+          els.generateBtn.textContent = "Crear mis publicaciones";
+        }
+      } else {
+        note = { text: "Para traducir al inglés activa Mejorar con IA" };
+        toast("Para traducir al inglés activa Mejorar con IA");
+      }
+    }
+    if (!original.link && !note) toast("Consejo: añade tu enlace de afiliado.");
 
     els.results.innerHTML = "";
+    if (note) showResultsNote(note.text, note.ok);
     settings.networks.forEach((n) => renderPost(n, buildPost(n, product, settings), false));
     renderBoards(boardIdeas(product, settings.lang));
     els.aiBox.hidden = !aiAvailable;
@@ -361,9 +494,9 @@
 
   /* ================= Prompts creativos ================= */
   function promptData() {
-    const p = getProduct();
     const s = getSettings();
     const lang = s.lang;
+    const p = productFor(lang);
     return {
       p, lang,
       name: p.name || (lang === "es" ? "el producto" : "the product"),
@@ -625,34 +758,70 @@
     }
   }
 
+  // Coloca el aviso justo detrás de la descripción: si falta, lo inserta antes del enlace
+  function ensureNoticeAndLink(text, disclaimer, link, needsLink) {
+    let t = text.trim();
+    if (!t.includes(disclaimer)) {
+      const i = link ? t.indexOf(link) : -1;
+      if (i > -1) {
+        const lineStart = t.lastIndexOf("\n", i) + 1;
+        t = (t.slice(0, lineStart).trimEnd() + "\n" + disclaimer + "\n\n" + t.slice(lineStart)).trim();
+      } else {
+        t += "\n" + disclaimer;
+      }
+    }
+    if (needsLink && link && !t.includes(link)) t += "\n\n🔗 " + link;
+    return t;
+  }
+
   async function improveWithAI() {
-    const cards = [...els.results.querySelectorAll(".post")];
-    if (!cards.length) { toast("Primero pulsa Crear mis publicaciones."); return; }
+    const current = readPosts();
+    const networks = Object.keys(current);
+    if (!networks.length) { toast("Primero pulsa Crear mis publicaciones."); return; }
     const settings = getSettings();
-    const product = getProduct();
-    const posts = {};
-    cards.forEach((c) => { posts[c.dataset.network] = c.querySelector("textarea").value; });
+    const disclaimer = getDisclaimer(settings.lang);
 
     els.improveBtn.disabled = true;
     els.improveBtn.textContent = "✨ Mejorando…";
     els.aiStatus.textContent = "Esto puede tardar unos segundos.";
     try {
+      let product = getProduct();
+      if (settings.lang === "en") {
+        // Usa la traducción guardada (o la crea) para no mezclar idiomas
+        try { product = await translateProduct(product); } catch (e) { /* sigue con los datos originales */ }
+      }
+      // Solo se envían los campos de texto (el enlace de Pinterest va aparte y no se toca)
+      const posts = {};
+      networks.forEach((n) => {
+        posts[n] = {};
+        Object.keys(current[n]).forEach((f) => { if (f !== "link") posts[n][f] = current[n][f].text; });
+      });
       const res = await callAI({
         mode: "posts",
         product,
         settings: { lang: settings.lang, style: settings.style, length: settings.length },
-        networks: Object.keys(posts),
+        networks,
         posts,
-        disclaimer: T[settings.lang].disclaimer
+        disclaimer
       });
       let changed = 0;
-      Object.keys(posts).forEach((n) => {
-        let txt = res.posts && typeof res.posts[n] === "string" ? res.posts[n].trim() : "";
-        if (!txt) return;
-        // Garantiza que el enlace y el aviso de afiliado siguen ahí
-        if (product.link && !txt.includes(product.link)) txt += "\n\n🔗 " + product.link;
-        if (!txt.includes(T[settings.lang].disclaimer)) txt += "\n\n" + T[settings.lang].disclaimer;
-        renderPost(n, txt, true);
+      networks.forEach((n) => {
+        const ai = res.posts && res.posts[n];
+        if (!ai || typeof ai !== "object") return;
+        const fields = Object.keys(current[n]).map((id) => {
+          const f = current[n][id];
+          let text = typeof ai[id] === "string" && ai[id].trim() ? ai[id].trim() : f.text;
+          if (n === "pinterest" && id === "description" && product.link) {
+            // En Pinterest el enlace va en su propio campo
+            text = text.split(product.link).join("").replace(/[ \t]*🔗[ \t]*$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
+          }
+          if (id === "text" || id === "description") {
+            text = ensureNoticeAndLink(text, disclaimer, product.link, n !== "pinterest");
+          }
+          if (id === "title" && f.max) text = truncate(text.replace(/^["“]|["”]$/g, ""), f.max);
+          return { id, label: f.label, text, max: f.max };
+        });
+        renderPost(n, fields, true);
         changed++;
       });
       if (Array.isArray(res.boards) && res.boards.length) {
@@ -681,9 +850,13 @@
     btn.addEventListener("click", () => copyText($(btn.dataset.copy).value, btn));
   });
   [els.imgPrompt, els.vidPrompt].forEach((ta) => ta.addEventListener("input", () => autoGrow(ta)));
-  document.addEventListener("change", (e) => { if (e.target.matches("input[type=radio], input[type=checkbox]")) save(); });
-  [els.name, els.desc, els.features, els.link, els.accessCode].forEach((el) => el.addEventListener("input", save));
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("input[type=radio], input[type=checkbox]")) { updateStoreUI(); save(); }
+  });
+  [els.name, els.desc, els.features, els.link, els.accessCode, els.storeName].forEach((el) => el.addEventListener("input", save));
+  els.storeName.addEventListener("input", updateStoreUI);
 
   load();
+  updateStoreUI();
   checkAI();
 })();

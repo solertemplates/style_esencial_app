@@ -15,7 +15,24 @@
    ===================================================================== */
 
 window.SE_TEMPLATES = {
+  /* ---------------------------------------------------------------
+     TIENDAS Y AVISOS DE AFILIADO
+     {store} → nombre de la tienda
+     --------------------------------------------------------------- */
+  stores: { amazon: "Amazon", temu: "Temu", aliexpress: "AliExpress", shein: "Shein" },
+  disclaimers: {
+    amazon: {
+      es: "Como afiliado de Amazon, gano con las compras que cumplen los requisitos.",
+      en: "As an Amazon Associate I earn from qualifying purchases."
+    },
+    other: {
+      es: "Como afiliado de {store}, puedo recibir una comisión.",
+      en: "As a {store} affiliate, I may earn a commission."
+    }
+  },
+
   es: {
+    /* Aviso genérico: solo se usa si eliges "Otra" tienda sin escribir el nombre */
     disclaimer: "Como afiliado, recibo una comisión por las compras que cumplen los requisitos.",
     defaultDesc: "Un producto práctico y bonito que merece un hueco en tu día a día.",
 
@@ -162,6 +179,7 @@ window.SE_TEMPLATES = {
   },
 
   en: {
+    /* Generic notice: only used when "Otra" store has no name */
     disclaimer: "As an affiliate, I earn from qualifying purchases.",
     defaultDesc: "A practical, beautiful find that deserves a spot in your everyday routine.",
 

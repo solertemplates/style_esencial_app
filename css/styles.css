@@ -165,6 +165,17 @@ textarea.input { resize: vertical; min-height: 80px; }
 .prompt-box .btn-copy { width: 100%; margin-top: 8px; }
 .ai-flag { font-size: 11px; font-weight: 700; color: var(--ai); background: var(--ai-soft); padding: 2px 8px; border-radius: 99px; }
 
+.group-store { margin: 14px 0 0; }
+.field-block + .field-block { margin-top: 12px; }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 6px; }
+.field-head .field-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.field-block .btn-copy { width: 100%; margin-top: 8px; }
+.post-text.short { min-height: 0; }
+.count.over { color: #c0392b; font-weight: 700; }
+.post-regen { margin-top: 10px; width: 100%; }
+.results-note { margin: 0 0 14px; }
+.results-note.ok { color: var(--ai); background: var(--ai-soft); border-color: #dcd6ff; }
+
 /* ---------- Tableros ---------- */
 .board-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .board {
@@ -173,6 +184,7 @@ textarea.input { resize: vertical; min-height: 80px; }
   border-radius: 12px; padding: 10px 14px; cursor: pointer;
 }
 .board::before { content: "📌 "; }
+.board.copied { background: #e8f6ee; border-color: #b7e2c8; color: var(--ok); }
 
 /* ---------- IA ---------- */
 .ai-box { margin-top: 4px; }

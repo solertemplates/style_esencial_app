@@ -59,6 +59,22 @@
       <label class="field-label" for="productFeatures">Características <small>(una por línea)</small></label>
       <textarea id="productFeatures" class="input" rows="5" placeholder="Textura ligera&#10;Apto para todo tipo de piel&#10;Sin perfume"></textarea>
 
+      <fieldset class="group group-store">
+        <legend>Tienda</legend>
+        <div class="chips">
+          <label class="chip"><input type="radio" name="store" value="amazon" checked><span>Amazon</span></label>
+          <label class="chip"><input type="radio" name="store" value="temu"><span>Temu</span></label>
+          <label class="chip"><input type="radio" name="store" value="aliexpress"><span>AliExpress</span></label>
+          <label class="chip"><input type="radio" name="store" value="shein"><span>Shein</span></label>
+          <label class="chip"><input type="radio" name="store" value="other"><span>Otra</span></label>
+        </div>
+        <div id="storeNameWrap" hidden>
+          <label class="field-label" for="storeName">Nombre de la tienda</label>
+          <input type="text" id="storeName" class="input" placeholder="Ej.: Zalando" autocomplete="off">
+        </div>
+        <p class="hint" id="disclaimerPreview"></p>
+      </fieldset>
+
       <label class="field-label" for="affiliateLink">Enlace de afiliado</label>
       <input type="url" id="affiliateLink" class="input" placeholder="https://…" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false">
     </section>

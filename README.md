@@ -4,10 +4,11 @@
 
 Aplicación web (HTML, CSS y JavaScript sencillos, sin frameworks) pensada para iPhone:
 
-1. **Datos del producto**: sube una captura, léela con OCR (Tesseract.js, español + inglés) y revisa nombre, descripción, características y enlace de afiliado.
+1. **Datos del producto**: sube una captura, léela con OCR (Tesseract.js, español + inglés) y revisa nombre, descripción, características, tienda (Amazon, Temu, AliExpress, Shein u otra) y enlace de afiliado.
 2. **Configurar publicaciones**: idioma, estilo, longitud y redes (Facebook, Instagram, TikTok, YouTube, Pinterest).
-3. **Publicaciones generadas**: una tarjeta por red, editable, con enlace, aviso de afiliado y botón **Copiar**.
-4. **Ideas de tablero para Pinterest** (máximo 3 palabras).
+3. **Publicaciones generadas**: una tarjeta por red, editable, con botón **Copiar**. El aviso de afiliado se adapta a la tienda y al idioma, y va justo después de la descripción y antes del enlace. En YouTube el título y la descripción se copian por separado; en Pinterest, el título, la descripción y el enlace.
+   - Si el idioma es inglés y la IA está activa, el nombre, la descripción y las características se traducen y se corrigen los errores del OCR antes de crear las publicaciones.
+4. **Ideas de tablero para Pinterest** (máximo 3 palabras). Toca una para copiarla.
 5. **Prompt creativo** de imagen y de vídeo para tu herramienta de IA favorita.
 6. **Mejorar con IA (opcional)**: usa OpenAI a través de una función segura en Vercel. Sin clave, la app funciona igual con plantillas.
 
