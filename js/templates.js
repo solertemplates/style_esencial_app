@@ -449,6 +449,12 @@ window.SE_TEMPLATES = {
     }
   },
 
+  /* Texto que va SIEMPRE al principio de los prompts de imagen y vídeo */
+  referencePrefix: {
+    es: "Usa como referencia exacta la foto del producto que adjunto. Reproduce el producto 100% igual: misma forma, colores, materiales y proporciones. No añadas objetos, cajas ni piezas extra. Colócalo en una posición natural y realista, por ejemplo un tablero apoyado plano sobre una mesa. Si aparecen personas o manos, deben tener anatomía y proporciones correctas y realistas, con el tamaño adecuado respecto al producto.",
+    en: "Use the product photo I attach as an exact reference. Reproduce the product 100% identically: same shape, colors, materials and proportions. Do not add objects, boxes or extra pieces. Place it in a natural, realistic position, for example a board lying flat on a table. If people or hands appear, they must have correct, realistic anatomy and proportions, at the right size relative to the product."
+  },
+
   formats: {
     "9:16": { es: "vertical 9:16 (Reels, TikTok, Stories, Shorts)", en: "vertical 9:16 (Reels, TikTok, Stories, Shorts)" },
     "1:1": { es: "cuadrado 1:1 (feed de Instagram y Facebook)", en: "square 1:1 (Instagram and Facebook feed)" },

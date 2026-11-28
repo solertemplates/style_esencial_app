@@ -511,6 +511,7 @@
     const d = promptData();
     if (d.lang === "es") {
       return [
+        T.referencePrefix[d.lang] + "\n",
         `Fotografía publicitaria profesional de ${d.name}${d.p.desc ? ` (${d.p.desc.replace(/\.$/, "")})` : ""}.`,
         d.feats ? `Resalta visualmente: ${d.feats}.` : "",
         `Estilo visual: ${d.visual}.`,
@@ -521,6 +522,7 @@
       ].filter(Boolean).join("\n");
     }
     return [
+      T.referencePrefix[d.lang] + "\n",
       `Professional advertising photo of ${d.name}${d.p.desc ? ` (${d.p.desc.replace(/\.$/, "")})` : ""}.`,
       d.feats ? `Visually highlight: ${d.feats}.` : "",
       `Visual style: ${d.visual}.`,
@@ -536,6 +538,7 @@
     const f = d.p.features;
     if (d.lang === "es") {
       return [
+        T.referencePrefix[d.lang] + "\n",
         `Vídeo promocional de 15 segundos para ${d.name}.`,
         `Formato ${d.format}. Estilo visual: ${d.visual}.`,
         ``,
@@ -548,6 +551,7 @@
       ].join("\n");
     }
     return [
+      T.referencePrefix[d.lang] + "\n",
       `15-second promotional video for ${d.name}.`,
       `Format ${d.format}. Visual style: ${d.visual}.`,
       ``,
